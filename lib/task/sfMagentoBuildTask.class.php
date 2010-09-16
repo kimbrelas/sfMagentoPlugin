@@ -94,39 +94,69 @@ EOF;
     $before = $stubFinder->in($models_path);
 
     $schema = $this->prepareSchemaFile($yml_path);
-
-    // markup base classes with magic methods
+    
+    // if the model/sfMagento dir doesnt exist, make it now
+    if(!file_exists($models_path))
+    {
+      $this->logSection('dir+', $models_path);
+      mkdir($models_path);
+    }
+    
     foreach (sfYaml::load($schema) as $model => $definition)
     {
-      $file = sprintf('%s%s/%s', $models_path, isset($definition['package']) ? '/'.substr($definition['package'], 0, strpos($definition['package'], '.')) : '', $model);
-      $code = file_get_contents($file);
-
-      // introspect the model without loading the class
-      if (preg_match_all('/@property (\w+) \$(\w+)/', $code, $matches, PREG_SET_ORDER))
+      // if optional package dir doesnt exist, make it now
+      if(isset($definition['package']))
       {
-        $properties = array();
-        foreach ($matches as $match)
+        $package_dir = $models_path.'/'.substr($definition['package'], 0, strpos($definition['package'], '.'));
+        
+        if(!$package_dir)
         {
-          $properties[$match[2]] = $match[1];
+          $this->logSection('dir+', $package_dir);
+          mkdir($package_dir);
         }
-
-        $typePad = max(array_map('strlen', array_merge(array_values($properties), array($model))));
-        $namePad = max(array_map('strlen', array_keys(array_map(array('sfInflector', 'camelize'), $properties))));
-        $setters = array();
-        $getters = array();
-
-        foreach ($properties as $name => $type)
-        {
-          $camelized = sfInflector::camelize($name);
-
-          $getters[] = sprintf('@method %-'.$typePad.'s %s%-'.($namePad + 2).'s Returns the current record\'s "%s" %s', $type, 'get', $camelized.'()', $name, $collection ? 'collection' : 'value');
-          $setters[] = sprintf('@method %-'.$typePad.'s %s%-'.($namePad + 2).'s Sets the current record\'s "%s" %s', $model, 'set', $camelized.'()', $name, 'value');
-        }
-
-        // use the last match as a search string
-        $code = str_replace($match[0], $match[0].PHP_EOL.' * '.PHP_EOL.' * '.implode(PHP_EOL.' * ', array_merge($getters, $setters)), $code);
-        file_put_contents($file, $code);
       }
+      
+      $file = sprintf('%s/%s.class.php', isset($definition['package']) ? $package_dir : $models_path, $model);
+      
+      // if the model file doesnt already exist, make it now
+      if(!file_exists($file))
+      {
+        $newfile = fopen($file, "w");
+        fclose($newfile);
+      }
+      
+      $properties = '';
+      $functions = '';
+      foreach($definition['columns'] as $key => $type)
+      {
+        $properties .= sprintf('protected $%s = array();
+  ', $key);
+  
+        $functions .= sprintf('public function set%s()
+  {
+    $this->%s = $%s;
+  }
+  
+  public function get%s()
+  {
+    return $this->%s;
+  }
+  ', ucfirst($key), $key, $key, ucfirst($key), $key);
+      }
+      
+      $code = sprintf(
+'<?php
+
+class %s
+{
+  %s
+  %s
+}', 
+        $model,
+        $properties,
+        $functions);
+      
+      file_put_contents($file, $code);
     }
 
     $this->reloadAutoload();
