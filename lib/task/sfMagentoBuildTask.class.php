@@ -94,14 +94,11 @@ EOF;
     $before = $stubFinder->in($models_path);
 
     $schema = $this->prepareSchemaFile($yml_path);
-    /*
-    $import = new sfMagento_Import_Schema();
-    $import->importSchema($schema, 'yml', $models_path);
 
     // markup base classes with magic methods
     foreach (sfYaml::load($schema) as $model => $definition)
     {
-      $file = sprintf('%s%s/%s/Base%s%s', $models_path, isset($definition['package']) ? '/'.substr($definition['package'], 0, strpos($definition['package'], '.')) : '', $builderOptions['baseClassesDirectory'], $model, $builderOptions['suffix']);
+      $file = sprintf('%s%s/%s', $models_path, isset($definition['package']) ? '/'.substr($definition['package'], 0, strpos($definition['package'], '.')) : '', $model);
       $code = file_get_contents($file);
 
       // introspect the model without loading the class
@@ -121,10 +118,9 @@ EOF;
         foreach ($properties as $name => $type)
         {
           $camelized = sfInflector::camelize($name);
-          $collection = 'Doctrine_Collection' == $type;
 
           $getters[] = sprintf('@method %-'.$typePad.'s %s%-'.($namePad + 2).'s Returns the current record\'s "%s" %s', $type, 'get', $camelized.'()', $name, $collection ? 'collection' : 'value');
-          $setters[] = sprintf('@method %-'.$typePad.'s %s%-'.($namePad + 2).'s Sets the current record\'s "%s" %s', $model, 'set', $camelized.'()', $name, $collection ? 'collection' : 'value');
+          $setters[] = sprintf('@method %-'.$typePad.'s %s%-'.($namePad + 2).'s Sets the current record\'s "%s" %s', $model, 'set', $camelized.'()', $name, 'value');
         }
 
         // use the last match as a search string
@@ -133,33 +129,6 @@ EOF;
       }
     }
 
-    $properties = parse_ini_file(sfConfig::get('sf_config_dir').'/properties.ini', true);
-    $tokens = array(
-      '##PACKAGE##'    => isset($properties['symfony']['name']) ? $properties['symfony']['name'] : 'symfony',
-      '##SUBPACKAGE##' => 'model',
-      '##NAME##'       => isset($properties['symfony']['author']) ? $properties['symfony']['author'] : 'Your name here',
-      ' <##EMAIL##>'   => '',
-      "{\n\n}"         => "{\n}\n",
-    );
-
-    // cleanup new stub classes
-    $after = $stubFinder->in($config['models_path']);
-    $this->getFilesystem()->replaceTokens(array_diff($after, $before), '', '', $tokens);
-
-    // cleanup base classes
-    $baseFinder = sfFinder::type('file')->name('Base*'.$builderOptions['suffix']);
-    $baseDirFinder = sfFinder::type('dir')->name('base');
-    $this->getFilesystem()->replaceTokens($baseFinder->in($baseDirFinder->in($config['models_path'])), '', '', $tokens);
-
-    // cleanup new table classes
-    $tableFinder = sfFinder::type('file')->prune('base')->name('*Table'.$builderOptions['suffix']);
-    foreach (array_diff($tableFinder->in($config['models_path']), $before) as $file)
-    {
-      $contents = file_get_contents($file);
-      file_put_contents($file, sfToolkit::stripComments($contents));
-    }
-
     $this->reloadAutoload();
-    */
   }
 }
