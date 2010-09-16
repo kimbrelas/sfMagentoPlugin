@@ -1,0 +1,1 @@
+<?php var_dump(sfConfig::get('sfMagento_test')); die; ?>

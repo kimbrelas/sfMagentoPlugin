@@ -1,0 +1,4 @@
+sf_magento_test:
+  url:   /magento/test
+  param: { module: test, action: index }
+  

@@ -1,0 +1,3 @@
+test:
+  columns:
+    test: string(255)
