@@ -150,8 +150,7 @@ EOF;
 class %s
 {
   %s
-  %s
-}', 
+  %s\n}', 
         $model,
         $properties,
         $functions);
