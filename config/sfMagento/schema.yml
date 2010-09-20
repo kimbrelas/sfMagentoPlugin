@@ -1,3 +1,5 @@
-test:
+Item:
   columns:
-    test: string(255)
+    id:    integer
+    name:  string(255)
+    price: string(255)

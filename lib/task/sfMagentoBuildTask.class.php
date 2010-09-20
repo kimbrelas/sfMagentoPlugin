@@ -87,13 +87,24 @@ EOF;
   {
     $this->logSection('sfMagento', 'generating model classes');
     
-    $models_path = sfConfig::get('sf_lib_dir').'/model/sfMagento';
-    $yml_path    = sfConfig::get('sf_config_dir').'/sfMagento';
-    
-    $stubFinder = sfFinder::type('file')->name('schema');
-    $before = $stubFinder->in($models_path);
+    $config['models_path'] = sfConfig::get('sf_lib_dir').'/model/sfMagento';
+    $config['yml_path']    = sfConfig::get('sf_config_dir').'/sfMagento';
 
-    $schema = $this->prepareSchemaFile($yml_path);
+    $schema = $this->prepareSchemaFile($config['yml_path']);
+    
+    $this->generateBaseFiles($schema, $config);
+    $this->generateModelFiles($schema, $config);
+    
+    $this->reloadAutoload();
+  }
+  
+  protected function generateBaseFiles($schema, $config)
+  {
+    $models_path = $config['models_path'];
+    $yml_path    = $config['yml_path'];
+    $base_dir    = $models_path.'/base';
+    
+    $base_finder = sfFinder::type('file')->name('Base*')->sort_by_name()->follow_link();
     
     // if the model/sfMagento dir doesnt exist, make it now
     if(!file_exists($models_path))
@@ -102,37 +113,62 @@ EOF;
       mkdir($models_path);
     }
     
+    if(!file_exists($base_dir))
+    {
+      $this->logSection('dir+', $base_dir);
+      mkdir($base_dir);
+    }
+    
+    // clear out old base files
+    foreach($base_finder->in($base_dir) as $base_file)
+    {
+      $this->logSection('file-', $base_file);
+      unlink($base_file);
+    }
+    
     foreach (sfYaml::load($schema) as $model => $definition)
     {
-      // if optional package dir doesnt exist, make it now
+      // if the package dir doesnt exist, make it now
       if(isset($definition['package']))
       {
         $package_dir = $models_path.'/'.substr($definition['package'], 0, strpos($definition['package'], '.'));
+        $package_base_dir = $package_dir.'/base';
         
-        if(!$package_dir)
+        if(!file_exists($package_dir))
         {
           $this->logSection('dir+', $package_dir);
           mkdir($package_dir);
         }
+        
+        if(!file_exists($package_base_dir))
+        {
+          $this->logSection('dir+', $package_base_dir);
+          mkdir($package_base_dir);
+        }
+        
+        // clear out old base files for this package
+        foreach($base_finder->in($package_base_dir) as $pkg_base_file)
+        {
+          $this->logSection('file-', $pkg_base_file);
+          unlink($pkg_base_file);
+        }
       }
       
-      $file = sprintf('%s/%s.class.php', isset($definition['package']) ? $package_dir : $models_path, $model);
+      $file = sprintf('%s/Base%s.class.php', isset($definition['package']) ? $package_base_dir : $base_dir, $model);
       
-      // if the model file doesnt already exist, make it now
-      if(!file_exists($file))
-      {
-        $newfile = fopen($file, "w");
-        fclose($newfile);
-      }
+      // create the base file
+      $this->logSection('file+', $file);
+      $newfile = fopen($file, "w");
+      fclose($newfile);
       
-      $properties = '';
-      $functions = '';
+      $properties = array();
+      $functions = array();
       foreach($definition['columns'] as $key => $type)
       {
-        $properties .= sprintf('protected $%s = array();
-  ', $key);
+        $properties[] = sprintf("// %s\n  ".'protected $%s;', $type, $key);
   
-        $functions .= sprintf('public function set%s()
+        $functions[] = sprintf(
+  'public function set%s($%s)
   {
     $this->%s = $%s;
   }
@@ -140,24 +176,60 @@ EOF;
   public function get%s()
   {
     return $this->%s;
-  }
-  ', ucfirst($key), $key, $key, ucfirst($key), $key);
+  }', ucfirst($key), $key, $key, $key, ucfirst($key), $key);
       }
       
       $code = sprintf(
 '<?php
 
-class %s
+class Base%s
 {
   %s
-  %s\n}', 
+  
+  %s
+}', 
         $model,
-        $properties,
-        $functions);
+        implode("\n\n  ", $properties),
+        implode("\n\n  ", $functions)
+      );
       
       file_put_contents($file, $code);
     }
+  }
+  
+  protected function generateModelFiles($schema, $config)
+  {
+    $models_path = $config['models_path'];
+    $yml_path    = $config['yml_path'];
 
-    $this->reloadAutoload();
+    foreach (sfYaml::load($schema) as $model => $definition)
+    {
+      if(isset($definition['package']))
+      {
+        $package_dir = $models_path.'/'.substr($definition['package'], 0, strpos($definition['package'], '.'));
+      }
+      
+      $file = sprintf('%s/%s.class.php', isset($definition['package']) ? $package_dir : $models_path, $model);
+      
+      // create the model file if it doesn't already exist
+      if(!file_exists($file))
+      {
+        $this->logSection('file+', $file);
+        $newfile = fopen($file, "w");
+        fclose($newfile);
+        
+        $code = sprintf(
+'<?php
+
+class %s extends Base%s
+{
+}', 
+          $model,
+          $model
+        );
+        
+        file_put_contents($file, $code);
+      }
+    }
   }
 }

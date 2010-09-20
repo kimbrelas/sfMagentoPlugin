@@ -1,4 +1,7 @@
 sf_magento_test:
   url:   /magento/test
   param: { module: test, action: index }
-  
+
+sf_magento_test_data:
+  url:   /magento/data
+  param: { module: test, action: sendMeData }
