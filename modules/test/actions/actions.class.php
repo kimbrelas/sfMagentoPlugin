@@ -12,6 +12,10 @@ class testActions extends sfActions
     
     $transport->persist($item);
     
+    $item->setName('testing');
+    
+    $transport->persist($item);
+    
     $this->data = $transport->flush();
   }
   
@@ -22,7 +26,10 @@ class testActions extends sfActions
     
     $data = $transport->getData();
     
-    $data['SomeOtherItemCollection'][0]->setName('Success!');
+    foreach($data as $key => $item)
+    {
+      $data[$key]['name'] = 'Success!';
+    }
     
     $transport->setData($data);
     

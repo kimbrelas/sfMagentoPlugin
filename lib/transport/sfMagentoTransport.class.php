@@ -24,7 +24,7 @@ class sfMagentoTransport
   {
     $data = $this->getData();
     
-    $data[get_class($obj).'Collection'][] = $obj;
+    $data[spl_object_hash($obj)] = $obj;
     
     $this->setData($data);
   }
@@ -50,23 +50,58 @@ class sfMagentoTransport
    */
   public function flush()
   {
-    return ($this->data) ? $this->curl() : $this->getData();
-  }
-  
-  /**
-   * post to the specified url and return the resulting data
-   */
-  protected function curl()
-  {
+    if(!$this->data)
+    {
+      return array();
+    }
+    
+    $data = $this->getNormalizedArray();
+    
+    // curl to the specified url and return the resulting data
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_URL, $this->url);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($curl, CURLOPT_TIMEOUT, 10);
     curl_setopt($curl, CURLOPT_POST, 1);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, 'data='.$this->data);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, 'data='.$data);
     
-    $this->setData(curl_exec($curl));
+    $newData = $this->updateDataFromNormalizedArray(curl_exec($curl));
+    
+    $this->setData($newData);
     
     return $this->getData();
+  }
+  
+  /**
+   * translating any objects in the data to a normalized array
+   */
+  public function getNormalizedArray()
+  {
+    $normalized = array();
+    
+    foreach($this->getData() as $key => $obj)
+    {
+      // add the object's key with empty array value
+      $normalized[$key] = array();
+      
+      $reflectionClass = new ReflectionClass(get_class($obj));
+      
+      // populate each one of the object's properties
+      foreach($reflectionClass->getProperties() as $property)
+      {
+        $getValue = 'get'.ucfirst($property->name);
+        
+        $normalized[$key][$property->name] = $obj->$getValue();
+      }
+    }
+    
+    return $normalized;
+  }
+  
+  /**
+   * merge the normalized arrays back into the data objects
+   */
+  public function updateDataFromNormalizedArray($array)
+  {
   }
 }
