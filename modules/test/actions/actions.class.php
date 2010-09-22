@@ -21,19 +21,14 @@ class testActions extends sfActions
   
   public function executeSendMeData(sfWebRequest $request)
   {
-    $transport = new sfMagentoTransport('magento', 'symfony');
-    $transport->setData($request->getParameter('data'));
-    
-    $data = $transport->getData();
+    $data = unserialize($request->getParameter('data'));
     
     foreach($data as $key => $item)
     {
       $data[$key]['name'] = 'Success!';
     }
     
-    $transport->setData($data);
-    
-    $this->data = serialize($transport->getData());
+    $this->data = serialize($data);
     
     $this->setLayout(false);
   }

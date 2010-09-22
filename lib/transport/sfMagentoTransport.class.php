@@ -64,10 +64,9 @@ class sfMagentoTransport
     curl_setopt($curl, CURLOPT_TIMEOUT, 10);
     curl_setopt($curl, CURLOPT_POST, 1);
     curl_setopt($curl, CURLOPT_POSTFIELDS, 'data='.$data);
+    $curl_exec = curl_exec($curl);
     
-    $newData = $this->updateDataFromNormalizedArray(curl_exec($curl));
-    
-    $this->setData($newData);
+    $this->mergeNormalizedArray(unserialize($curl_exec));
     
     return $this->getData();
   }
@@ -95,13 +94,30 @@ class sfMagentoTransport
       }
     }
     
-    return $normalized;
+    return serialize($normalized);
   }
   
   /**
-   * merge the normalized arrays back into the data objects
+   * merge the normalized array back into the data object
    */
-  public function updateDataFromNormalizedArray($array)
+  public function mergeNormalizedArray($normalized)
   {
+    $data = $this->getData();
+    
+    foreach($data as $key => $obj)
+    {
+      // if the object is still part of the array
+      if(isset($normalized[$key]))
+      {
+        foreach($normalized[$key] as $property => $value)
+        {
+          $setValue = 'set'.ucfirst($property);
+          
+          $data[$key]->$setValue($value);
+        }
+      }
+    }
+    
+    $this->setData($data);
   }
 }
