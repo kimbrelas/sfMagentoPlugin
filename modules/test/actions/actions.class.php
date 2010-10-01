@@ -23,9 +23,13 @@ class testActions extends sfActions
   {
     $data = unserialize($request->getParameter('data'));
     
-    foreach($data as $key => $item)
+    foreach($data as $class => $objects)
     {
-      $data[$key]['name'] = 'Success!';
+      foreach($objects as $key => $obj)
+      {
+        $data[$class][$key]['name'] = 'Success!';
+    
+      }
     }
     
     $this->data = serialize($data);

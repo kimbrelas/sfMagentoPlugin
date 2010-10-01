@@ -13,7 +13,6 @@ class sfMagentoTransport
    */
   public function __construct($from, $to)
   {
-    //$this->url = sfMagentoConfig::get('someconfigvar');
     $this->url = 'http://lah.localhost/magento/data';
   }
   
@@ -24,7 +23,7 @@ class sfMagentoTransport
   {
     $data = $this->getData();
     
-    $data[spl_object_hash($obj)] = $obj;
+    $data[get_class($obj)][spl_object_hash($obj)] = $obj;
     
     $this->setData($data);
   }
@@ -64,9 +63,8 @@ class sfMagentoTransport
     curl_setopt($curl, CURLOPT_TIMEOUT, 10);
     curl_setopt($curl, CURLOPT_POST, 1);
     curl_setopt($curl, CURLOPT_POSTFIELDS, 'data='.$data);
-    $curl_exec = curl_exec($curl);
     
-    $this->mergeNormalizedArray(unserialize($curl_exec));
+    $this->mergeNormalizedArray(unserialize(curl_exec($curl)));
     
     return $this->getData();
   }
@@ -78,19 +76,22 @@ class sfMagentoTransport
   {
     $normalized = array();
     
-    foreach($this->getData() as $key => $obj)
+    foreach($this->getData() as $class => $objects)
     {
-      // add the object's key with empty array value
-      $normalized[$key] = array();
-      
-      $reflectionClass = new ReflectionClass(get_class($obj));
-      
-      // populate each one of the object's properties
-      foreach($reflectionClass->getProperties() as $property)
+      foreach($objects as $key => $obj)
       {
-        $getValue = 'get'.ucfirst($property->name);
+        // add the object's key with empty array value
+        $normalized[$class][$key] = array();
         
-        $normalized[$key][$property->name] = $obj->$getValue();
+        $reflectionClass = new ReflectionClass(get_class($obj));
+        
+        // populate each one of the object's properties
+        foreach($reflectionClass->getProperties() as $property)
+        {
+          $getValue = 'get'.ucfirst($property->name);
+          
+          $normalized[$class][$key][$property->name] = $obj->$getValue();
+        }
       }
     }
     
@@ -104,16 +105,19 @@ class sfMagentoTransport
   {
     $data = $this->getData();
     
-    foreach($data as $key => $obj)
+    foreach($data as $class => $objects)
     {
-      // if the object is still part of the array
-      if(isset($normalized[$key]))
+      foreach($objects as $key => $obj)
       {
-        foreach($normalized[$key] as $property => $value)
+        // if the object is still part of the array
+        if(isset($normalized[$class][$key]))
         {
-          $setValue = 'set'.ucfirst($property);
-          
-          $data[$key]->$setValue($value);
+          foreach($normalized[$class][$key] as $property => $value)
+          {
+            $setValue = 'set'.ucfirst($property);
+            
+            $data[$class][$key]->$setValue($value);
+          }
         }
       }
     }
